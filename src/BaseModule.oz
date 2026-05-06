@@ -1,4 +1,6 @@
 functor
+import
+    Math
 export
     decode:Decode
     executeBlockchain:ExecuteBlockchain
@@ -6,27 +8,79 @@ define
 
     %% STUDENT START:
     
-    fun {TransitionHash Nonce Sender Receiver Value}
+    fun {HashTransaction Nonce Sender Receiver Value}
         %%TransitionHash = (nonce + sender + receiver + value) mod 10^6
+        (Nonce + Sender + Receiver + Value) mod 1000000
     end
 
-    fun {BlockHash Number PreviousHash TransactionsNum HashTransaction}
+    fun {BlockHash Number PreviousHash Transactions}
+        local
+            fun {SumHashTransactions Transactions}
+                case Transactions
+                of nil then 0
+                [] H|T then {HashTransaction H} + {SumHashTransactions T}
+                end
+            end
+        in
         %%BlockHash = (number + previousHash + Σ(i=1 to #transactions) hashTransaction_i) mod 10^6
+        (Number + PreviousHash + {SumHashTransactions Transactions}) mod 1000000
+        end
     end
 
     fun {Effort Value}
         %%effort = Σ(i=0 to len(value)-1) 2^i
+        local
+            fun {LenNb N}
+                if N < 0 then ~1
+                elseif N < 10 then 1
+                else 1 + {LenNb N div 10}
+                end
+            end
+            fun {SumEffort N}
+                case N
+                of 0 then 1
+                else {Float.toInt {Math.pow {Int.toFloat {Int.toFloat 2} {Int.toFloat N}}}} + {SumEffort N - 1}
+                end
+            end
+        in
+            {SumEffort {LenNb Value} - 1}
+        end
     end
 
-    fun {TransactionValidation Nonce Hash Sender Value MaxEffort Effort}
-        %%le nonce doit être égal au nonce de la dernière transaction envoyée par
+    fun {TransactionValidation Block Hash Number PreviousHash Transactions Balance Value MaxEffort}
+        %%*le nonce doit être égal au nonce de la dernière transaction envoyée par
         %%cet utilisateur + 1,
-        %%• le hash de la transaction correspond au résultat de la fonction de hachage,
-        %%• le sender a suffisamment de fonds pour effectuer la transaction,
-        %%• le value de la transaction est positif ou nul,
-        %%le max_effort de la transaction est positif,
-        %%• l’effort de la transaction (calculé par la fonction de calcul de l’effort) ne
+        %%*• le hash de la transaction correspond au résultat de la fonction de hachage,
+        %%*• le value de la transaction est positif ou nul,
+        %%*• le sender a suffisamment de fonds pour effectuer la transaction,
+        %%*le max_effort de la transaction est positif,
+        %%*• l’effort de la transaction (calculé par la fonction de calcul de l’effort) ne
         %%dépasse pas son max_effort
+        local
+            local
+                fun {Eq H T}
+                    if (H - 1) == T then 0
+                    else ~1
+                    end
+                end
+            in
+                fun {NonceCheck Block}
+                    case Block of
+                    nil then 0
+                    [] H|T then {Eq H T} + {NonceCheck T}
+                    end
+                end
+            end
+        in
+            if {NonceCheck Block} \= 0 then ~1
+            elseif (Hash - {BlockHash Number PreviousHash Transactions}) \= 0 then ~1
+            elseif Value < 0 then ~1
+            elseif Balance < Value then ~1
+            elseif MaxEffort <= 0 then ~1
+            elseif {Effort Value} > MaxEffort then ~1
+            else 0
+            end
+        end
     end
 
     fun {BlocValidation BlocNum PreviousHash Hash Bloc MaxEffort}
