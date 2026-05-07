@@ -1,6 +1,4 @@
 functor
-import
-    Math
 export
     decode:Decode
     executeBlockchain:ExecuteBlockchain
@@ -8,15 +6,15 @@ define
 
     %% STUDENT START:
     
-    fun {HashTransaction Nonce Sender Receiver Value}
-        %%TransitionHash = (nonce + sender + receiver + value) mod 10^6
-        (Nonce + Sender + Receiver + Value) mod 1000000
+    fun {HashTransaction Tx}
+        %% TransitionHash = (nonce + sender + receiver + value) mod 10^6
+        (Tx.nonce + Tx.sender + Tx.receiver + Tx.value) mod 1000000
     end
 
     fun {BlockHash Number PreviousHash Transactions}
         local
-            fun {SumHashTransactions Transactions}
-                case Transactions
+            fun {SumHashTransactions Ts}
+                case Ts
                 of nil then 0
                 [] H|T then {HashTransaction H} + {SumHashTransactions T}
                 end
@@ -28,26 +26,37 @@ define
     end
 
     fun {Effort Value}
-        %%effort = Σ(i=0 to len(value)-1) 2^i
-        local
-            fun {LenNb N}
-                if N < 0 then ~1
-                elseif N < 10 then 1
-                else 1 + {LenNb N div 10}
+    %%effort = Σ(i=0 to len(value)-1) 2^i
+        if Value < 0 then
+            ~1
+        else
+            local
+                fun {LenNb N}
+                    if N < 10 then 1
+                    else 1 + {LenNb (N div 10)}
+                    end
                 end
-            end
-            fun {SumEffort N}
-                case N
-                of 0 then 1
-                else {Float.toInt {Math.pow {Int.toFloat {Int.toFloat 2} {Int.toFloat N}}}} + {SumEffort N - 1}
+                
+                local
+                    fun {Pow Base Exp}
+                        if Exp == 0 then 1
+                        else Base * {Pow Base (Exp - 1)}
+                        end
+                    end
+                in
+                    fun {SumEffort N}
+                        if N == 0 then 1
+                        else {Pow 2 N} + {SumEffort (N - 1)}
+                        end
+                    end
                 end
+            in
+                {SumEffort ({LenNb Value} - 1)}
             end
-        in
-            {SumEffort {LenNb Value} - 1}
         end
     end
 
-    fun {TransactionValidation Block Hash Number PreviousHash Transactions Balance Value MaxEffort}
+    fun {TransactionValidation Transactions Hash Value Balance MaxEffort Block Number PreviousHash}
         %%*le nonce doit être égal au nonce de la dernière transaction envoyée par
         %%cet utilisateur + 1,
         %%*• le hash de la transaction correspond au résultat de la fonction de hachage,
@@ -69,10 +78,7 @@ define
                     nil then 0
                     [] H|T then {Eq H T} + {NonceCheck T}
                     end
-                end
-            end
-        in
-            if {NonceCheck Block} \= 0 then ~1
+            if {NonceCheck Transactions} \= 0 then ~1
             elseif (Hash - {BlockHash Number PreviousHash Transactions}) \= 0 then ~1
             elseif Value < 0 then ~1
             elseif Balance < Value then ~1
@@ -83,16 +89,43 @@ define
         end
     end
 
-    fun {BlocValidation BlocNum PreviousHash Hash Bloc MaxEffort}
-        %%le number du bloc doit être égal au number du bloc précédent + 1,
-        %%• le previousHash du bloc doit être égal au hash du bloc précédent,
-        %%• le hash du bloc doit correspondre au résultat de la fonction de hachage
+    fun {BlocValidation BlocNum PreviousBlocNum PreviousHash PreviousBlocHash Hash Number Transactions Value}
+        %%*le number du bloc doit être égal au number du bloc précédent + 1,
+        %%*• le previousHash du bloc doit être égal au hash du bloc précédent,
+        %%*• le hash du bloc doit correspondre au résultat de la fonction de hachage
         %%d’un bloc,
-        %%• toutes les transactions du bloc doivent être valides,
-        %%• la somme des efforts de toutes les transactions du bloc ne doit
+        %%*• toutes les transactions du bloc doivent être valides,
+        %%*• la somme des efforts de toutes les transactions du bloc ne doit
         %%pas dépasser l’effort maximal d’un block qui est de 300. Si ajouter
         %%une transaction à un bloc entraîne un dépassement de ce seuil, alors cette
         %%transaction ne doit pas être ajoutée au bloc.
+        local
+            local
+                fun {TransactionValidationAux Transaction}
+                    {TransactionValidation Transaction.Block Transaction.Hash Transaction.Number Transaction.PreviousHash Transaction.Transactions Transaction.Balance Transaction.Value Transaction.MaxEffort}
+                end
+            in
+                fun {ValidTrans Transactions}
+                    case Transactions of
+                    nil then 0
+                    [] H|T then {TransactionValidationAux H} + {ValidTrans T}
+                    end
+                end
+            end
+            fun {TotalEffort Transactions}
+                case Transactions of
+                nil then 0
+                [] H|T then {Effort H.Value} + {TotalEffort T}
+                end
+            end
+        in
+            if BlocNum - 1 \= PreviousBlocNum then ~1
+            elseif PreviousHash \= PreviousBlocHash then ~1
+            elseif Hash \= {BlockHash Number PreviousHash Transactions} then ~1
+            elseif {TotalEffort Transactions} > 300 then ~1
+            else 0
+            end
+        end
     end
 
     fun {StationValidation AdressX BalanceX NonceX}
