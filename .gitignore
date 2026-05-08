@@ -1,1 +1,16 @@
 .DS_Store
+# Ignore data files
+data/genesis.txt
+data/transactions.txt
+
+# Ignore test files
+src/Test.oz
+
+# Ignore compiled Oz files
+*.ozf
+
+# Ignore zip submissions
+*.zip
+
+# Ignore PDF reports
+rapport.pdf
