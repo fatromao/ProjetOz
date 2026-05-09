@@ -2,7 +2,7 @@ functor
 import
     Application
     System
-    BaseModule at './src/BaseModule.ozf'
+    BaseModule at './src/ExtensionEffort.ozf'
     FileHelper at './library/FileHelperModule.ozf'
 define
 
