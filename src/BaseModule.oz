@@ -102,9 +102,7 @@ define
             end
 
             fun {EffortCheck Value MaxEffort}
-                CurrentEffort = {Effort Value}
-            in
-                if CurrentEffort > MaxEffort then ~1
+                if {Effort Value} > MaxEffort then ~1
                 else 0
                 end
             end
@@ -120,6 +118,7 @@ define
         end
     end
 
+    
     fun {BlockValidation Block PreviousBlock State}
         %%Block is a block record
         %%PreviousBlock is the previous block record
@@ -155,7 +154,7 @@ define
                 [] H|T then
                     Sender = State.(H.sender)
                 in
-                    if {TransactionValidation H Sender} \= 0 then ~1
+                    if {TransactionValidation H Sender} \= 0 then invalid
                     else
                         SenderNewBalance = Sender.balance - H.value
                         Receiver
@@ -179,15 +178,17 @@ define
             end
 
             fun {EffortCheck Transactions}
-                fun {TotalEffort Transactions}
-                    case Transactions of
-                    nil then 0
-                    [] H|T then {Effort H.value} + {TotalEffort T}
+                local
+                    fun {TotalEffort Transactions}
+                        case Transactions of
+                        nil then 0
+                        [] H|T then {Effort H.value} + {TotalEffort T}
+                        end
                     end
-                end
-            in
-                if {TotalEffort Transactions} > 300 then ~1
-                else 0
+                in
+                    if {TotalEffort Transactions} > 300 then ~1
+                    else 0
+                    end
                 end
             end
         in
@@ -197,7 +198,7 @@ define
             else
                 NewState = {TransCheck Block.transactions State}
             in
-                if NewState == ~1 then ~1
+                if NewState == invalid then ~1
                 elseif {EffortCheck Block.transactions} \= 0 then ~1
                 else 0
                 end
@@ -262,9 +263,76 @@ define
         %%On obtient donc la phrase secrète "SEA".
         %%Si le hash a un nombre impair de chiffres, le dernier chiffre ne doit pas être pris en compte.
 
-        "Not implemented yet"
-        
-        %% STUDENT END
+        local
+            fun {Reverse L}
+                fun {ReverseAux L Acc}
+                    case L 
+                    of nil then Acc
+                    [] H|T then {ReverseAux T H|Acc}
+                    end
+                end
+            in
+                {ReverseAux L nil}
+            end
+
+            % Fonction qui transforme un entier en sa liste de chiffres
+            fun {IntToDigits N}
+                fun {IntToDigitsAux N}
+                    if N == 0 then nil
+                    else (N mod 10)|{IntToDigitsAux (N div 10)}
+                    end
+                end
+            in
+                {Reverse {IntToDigitsAux N}}
+            end
+
+            % Fonction qui regroupe les chiffres par paires
+            fun {Pairs L}
+                case L
+                of nil then nil
+                [] _|nil then nil
+                [] H1|H2|T then (H1 * 10 + H2)|{Pairs T}
+                end
+            end
+
+            % Fonction qui trouve la lettre correspondante
+            fun {NumToLetter N}
+                Table = table(10:&a 11:&b 12:&c 13:&d 14:&e 15:&f 16:&g 17:&h 18:&i 19:&j 20:&k 21:&l 22:&m 23:&n 24:&o 25:&p 
+                            26:&q 27:&r 28:&s 29:&t 30:&u 31:&v 32:&w 33:&x 34:&y 35:&z 36:& )
+                Modulo = N mod 37
+            in
+                if Modulo < 10 then Table.36
+                else Table.Modulo
+                end
+            end
+
+            %Fonction pour append 2 str
+            fun {Append L1 L2}
+                case L1
+                of nil then L2
+                [] H|T then H|{Append T L2}
+                end
+            end
+
+            % Fonction pour convertir le hash vers un str
+            fun{HashToStr Hash}
+                fun {PairsToLetters L}
+                    case L
+                    of nil then nil
+                    [] H|T then {NumToLetter H}|{PairsToLetters T}
+                    end
+                end
+            in
+                {PairsToLetters {Pairs {IntToDigits Hash}}}
+            end
+
+
+        in
+            case Blockchain
+            of nil then nil
+            [] H|T then {Append {HashToStr H.hash} {Decode T}}
+            end
+        end 
     end
 
 
@@ -416,8 +484,8 @@ define
         GenesisBlock = block(number:~1 previousHash:0 transactions:nil hash:0)
         Result = {Process Transactions InitialState nil GenesisBlock ~1 nil 0}
     in
-        FinalState = InitialState
-        FinalBlockchain = nil
+        FinalState = Result.state
+        FinalBlockchain = Result.blockchain
         %% STUDENT END
     end
 end
