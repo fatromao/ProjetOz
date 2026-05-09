@@ -8,17 +8,19 @@ ZIP_NAME=$(NOMA1)_$(NOMA2).zip
 # Fichiers sources
 BASE_SRC=src/BaseModule.oz
 EXT1_SRC=src/ExtensionEffort.oz
+EXT2_SRC=src/ExtensionDenylist.oz
 HELPER_SRC=library/FileHelperModule.oz
 MAIN_SRC=Main.oz
 
 # Fichiers compilés (foncteurs)
 BASE_OZF=$(BASE_SRC:.oz=.ozf)
 EXT1_OZF=$(EXT1_SRC:.oz=.ozf)
+EXT2_OZF=$(EXT2_SRC:.oz=.ozf)
 HELPER_OZF=$(HELPER_SRC:.oz=.ozf)
 MAIN_OZF=$(MAIN_SRC:.oz=.ozf)
 
 # Cible par défaut : tout compiler
-all: $(BASE_OZF) $(HELPER_OZF) $(MAIN_OZF) $(EXT1_OZF)
+all: $(BASE_OZF) $(HELPER_OZF) $(MAIN_OZF) $(EXT1_OZF) $(EXT2_OZF)
 
 # Règle pour compiler les fichiers .oz en .ozf
 %.ozf: %.oz
@@ -26,12 +28,12 @@ all: $(BASE_OZF) $(HELPER_OZF) $(MAIN_OZF) $(EXT1_OZF)
 
 # Dépendances spécifiques (Main a besoin des modules pour être testé, 
 # même si ozc -c ne vérifie pas les imports à la compilation)
-$(MAIN_OZF): $(MAIN_SRC) $(BASE_OZF) $(HELPER_OZF) $(EXT1_OZF)
+$(MAIN_OZF): $(MAIN_SRC) $(BASE_OZF) $(HELPER_OZF) $(EXT1_OZF) $(EXT2_OZF)
 	$(OZ) -c $(MAIN_SRC) -o $(MAIN_OZF)
 
 # Commande pour nettoyer les fichiers compilés
 clean:
-	rm -f $(BASE_OZF) $(HELPER_OZF) $(MAIN_OZF) $(EXT1_OZF)
+	rm -f $(BASE_OZF) $(HELPER_OZF) $(MAIN_OZF) $(EXT1_OZF) $(EXT2_OZF)
 
 # Commande pour exécuter le programme (exemple avec arguments)
 run: all
