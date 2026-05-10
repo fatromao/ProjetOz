@@ -163,7 +163,7 @@ define
                 [] H|T then
                     Sender = State.(H.sender)
                 in
-                    if {TransactionValidation H Sender} \= 0 then invalid
+                    if {TransactionValidation H Sender} \= 0 then ~1
                     else
                         SenderNewBalance = Sender.balance - H.value
                         Receiver
@@ -207,7 +207,7 @@ define
             else
                 NewState = {TransCheck Block.transactions State}
             in
-                if NewState == invalid then ~1
+                if NewState == ~1 then ~1
                 elseif {EffortCheck Block.transactions} \= 0 then ~1
                 else 0
                 end
