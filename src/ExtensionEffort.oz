@@ -88,7 +88,7 @@ define
             end
 
             fun {BalanceCheck Balance Value}
-                if Balance < Value then ~1
+                if Balance < Value + {Effort Value} then ~1
                 else 0
                 end
             end
@@ -404,7 +404,7 @@ define
                 {StateUpdate
                     State
                     Transaction.sender
-                    Sender.balance - Transaction.value
+                    Sender.balance - Transaction.value - {Effort Transaction.value}
                     Transaction.nonce}
 
             try

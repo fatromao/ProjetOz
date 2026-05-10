@@ -334,6 +334,38 @@ define
     end
 
 
+    % Nouveaux helpers pour Denylist
+    fun {Member X L}
+        case L
+        of nil then false
+        [] H|T then
+            if H == X then true
+            else {Member X T}
+            end
+        end
+    end
+
+    fun {GetCount Counts Sender}
+        case Counts
+        of nil then 0
+        [] A#V|T then
+            if A == Sender then V
+            else {GetCount T Sender}
+            end
+        end
+    end
+
+    fun {IncrementCount Counts Sender}
+        case Counts
+        of nil then [Sender#1]
+        [] A#V|T then
+            if A == Sender then Sender#(V+1)|T
+            else A#V|{IncrementCount T Sender}
+            end
+        end
+    end
+
+    
     % This procedure is the starting point of the execution
     % The GenesisState and the Transactions are given as input and the function is expected to bound the FinalState and the FinalBlockchain to their respective final values.
     proc {ExecuteBlockchain GenesisState Transactions FinalState FinalBlockchain}
@@ -448,7 +480,8 @@ define
             end
         end
 
-        fun {Process Transactions State Blockchain PreviousBlock CurrentBlockNumber CurrentTransactions CurrentEffort}
+
+        fun {Process Transactions State Blockchain PreviousBlock CurrentBlockNumber CurrentTransactions CurrentEffort Denylist Counts}
             case Transactions
             of nil then
                 if CurrentBlockNumber == ~1 then
@@ -462,25 +495,37 @@ define
 
             [] H|T then
                 if CurrentBlockNumber == ~1 then
-                    {Process Transactions State Blockchain PreviousBlock H.block_number nil 0}
+                    {Process Transactions State Blockchain PreviousBlock H.block_number nil 0 Denylist nil}
 
                 elseif H.block_number \= CurrentBlockNumber then
                     FinalBlock = {MakeBlock CurrentBlockNumber PreviousBlock.hash CurrentTransactions}
                     NewBlockchain = {AppendEnd Blockchain FinalBlock}
                 in
-                    {Process Transactions State NewBlockchain FinalBlock H.block_number nil 0}
+                    {Process Transactions State NewBlockchain FinalBlock H.block_number nil 0 Denylist nil}
+                
+                elseif {Member H.sender Denylist} then
+                    {Process T State Blockchain PreviousBlock CurrentBlockNumber CurrentTransactions CurrentEffort Denylist Counts}
 
                 else
-                    R = {TryAddTransaction H State CurrentTransactions CurrentEffort}
+                    NewCounts = {IncrementCount Counts H.sender}
+                    NewDenylist
+                    R 
                 in
-                    {Process T R.state Blockchain PreviousBlock CurrentBlockNumber R.transactions R.effort}
+                    if {GetCount NewCounts H.sender} >= 3 andthen {Member H.sender Denylist} == false then
+                        NewDenylist = H.sender|Denylist
+                    else 
+                        NewDenylist = Denylist
+                    end
+
+                    R = {TryAddTransaction H State CurrentTransactions CurrentEffort}
+                    {Process T R.state Blockchain PreviousBlock CurrentBlockNumber R.transactions R.effort NewDenylist NewCounts}
                 end
             end
         end
 
         InitialState = {GenesisToStateLocal GenesisState}
         GenesisBlock = block(number:~1 previousHash:0 transactions:nil hash:0)
-        Result = {Process Transactions InitialState nil GenesisBlock ~1 nil 0}
+        Result = {Process Transactions InitialState nil GenesisBlock ~1 nil 0 nil nil}
     in
         FinalState = Result.state
         FinalBlockchain = Result.blockchain
